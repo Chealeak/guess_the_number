@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -51,6 +52,21 @@ type Result struct {
 	Attempts int       `json:"attempts"`
 }
 
+type LastAttempts []int
+
+func (la LastAttempts) print() string {
+	var sb strings.Builder
+
+	sb.WriteString(strconv.Itoa(la[0]))
+
+	for _, attempt := range la[1:] {
+		sb.WriteString(",")
+		sb.WriteString(strconv.Itoa(attempt))
+	}
+
+	return sb.String()
+}
+
 func main() {
 	difficultySet := NewDifficultySet()
 	difficulty, err := setupDifficulty(difficultySet)
@@ -60,11 +76,16 @@ func main() {
 	}
 
 	randNum := generateRandNum(difficulty.RangeFrom, difficulty.RangeTo)
-
 	attemp := 1
+	var lastAttempts LastAttempts
+
 	scanner := bufio.NewScanner(os.Stdin)
 
 	for {
+		if len(lastAttempts) > 0 {
+			fmt.Printf("\nLast attempts: %s\n", lastAttempts.print())
+		}
+
 		fmt.Printf("Try #%d - Enter a number from %d to %d:\n", attemp, difficulty.RangeFrom, difficulty.RangeTo)
 		if scanner.Scan() {
 			enteredString := scanner.Text()
@@ -88,6 +109,7 @@ func main() {
 				writeResult(outcome, attemp)
 
 				attemp = 1
+				lastAttempts = LastAttempts{}
 				ok, err := startOver()
 				if err != nil {
 					fmt.Printf("An error occurred: %v\n", err)
@@ -106,6 +128,7 @@ func main() {
 				}
 			} else {
 				attemp++
+				lastAttempts = append(lastAttempts, enteredNum)
 				fmt.Println(giveHint(enteredNum, randNum))
 			}
 		}
