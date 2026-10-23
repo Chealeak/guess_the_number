@@ -61,7 +61,8 @@ func main() {
 		if scanner.Scan() {
 			enteredString := scanner.Text()
 			enteredNum, err := strconv.Atoi(enteredString)
-			if err != nil {
+			outOfRange := enteredNum < difficulty.RangeFrom || enteredNum > difficulty.RangeTo
+			if err != nil || outOfRange {
 				fmt.Printf("Please enter a number from %d to %d:\n", difficulty.RangeFrom, difficulty.RangeTo)
 				continue
 			}
