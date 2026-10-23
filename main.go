@@ -8,12 +8,6 @@ import (
 	"strconv"
 )
 
-const (
-	defaultRangeFrom int = 1
-	defaultRangeTo   int = 100
-	defaultAttemps   int = 10
-)
-
 type DifficultySet struct {
 	Easy   Difficulty
 	Medium Difficulty
@@ -51,32 +45,15 @@ func (d DifficultySet) get(difficulty int) Difficulty {
 
 func main() {
 	difficultySet := NewDifficultySet()
-	difficulty := Difficulty{
-		RangeFrom: defaultRangeFrom,
-		RangeTo:   defaultRangeTo,
-		Attempts:  defaultAttemps,
+	difficulty, err := setupDifficulty(difficultySet)
+	if err != nil {
+		fmt.Printf("An error occurred during difficulty setup: %v\n", err)
+		os.Exit(1)
 	}
 
-	randNum := generateRandNum(defaultRangeFrom, defaultRangeTo)
+	randNum := generateRandNum(difficulty.RangeFrom, difficulty.RangeTo)
 
 	scanner := bufio.NewScanner(os.Stdin)
-
-	fmt.Println("Let's start the game! Choose difficulty: 1 (easy), 2 (medium), 3 (hard)")
-
-	for {
-		if scanner.Scan() {
-			enteredDifficulty := scanner.Text()
-			enteredDifficultyNum, err := strconv.Atoi(enteredDifficulty)
-			allowedDifficultyNums := [3]int{1, 2, 3}
-			if err != nil || !inArray(allowedDifficultyNums, enteredDifficultyNum) {
-				fmt.Println("Please enter a valid number: 1 (easy), 2 (medium), 3 (hard)")
-				continue
-			}
-			difficulty = difficultySet.get(enteredDifficultyNum)
-			randNum = generateRandNum(difficulty.RangeFrom, difficulty.RangeTo)
-			break
-		}
-	}
 
 	for {
 		fmt.Printf("Enter a number from %d to %d!\n", difficulty.RangeFrom, difficulty.RangeTo)
@@ -92,7 +69,12 @@ func main() {
 				fmt.Println("You win! Want to play again? (y - yes, n - no)")
 				if scanner.Scan() {
 					if scanner.Text() == "y" {
-						randNum = generateRandNum(defaultRangeFrom, defaultRangeTo) // TODO
+						difficulty, err = setupDifficulty(difficultySet)
+						if err != nil {
+							fmt.Printf("An error occurred during difficulty setup: %v\n", err)
+							os.Exit(1)
+						}
+						randNum = generateRandNum(difficulty.RangeFrom, difficulty.RangeTo)
 						continue
 					} else if scanner.Text() == "n" {
 						fmt.Println("Game is over")
@@ -106,6 +88,29 @@ func main() {
 
 		if err := scanner.Err(); err != nil {
 			fmt.Printf("An error occurred: %v\n", err)
+			os.Exit(1)
+		}
+	}
+}
+
+func setupDifficulty(difficultySet DifficultySet) (Difficulty, error) {
+	fmt.Println("Choose difficulty: 1 (easy), 2 (medium), 3 (hard)")
+
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		if scanner.Scan() {
+			enteredDifficulty := scanner.Text()
+			enteredDifficultyNum, err := strconv.Atoi(enteredDifficulty)
+			allowedDifficultyNums := [3]int{1, 2, 3}
+			if err != nil || !inArray(allowedDifficultyNums, enteredDifficultyNum) {
+				fmt.Println("Please enter a valid number: 1 (easy), 2 (medium), 3 (hard)")
+				continue
+			}
+			return difficultySet.get(enteredDifficultyNum), nil
+		}
+
+		if err := scanner.Err(); err != nil {
+			return Difficulty{}, fmt.Errorf("An error occurred: %w", err)
 		}
 	}
 }
