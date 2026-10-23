@@ -105,7 +105,7 @@ func main() {
 					color.Green("You win!")
 					outcome = "win"
 				} else {
-					color.Red("Out of attempts. You lose...")
+					color.Red("Out of attempts. You lose... The secret number was: %d.", randNum)
 				}
 
 				writeResult(outcome, attemp)
