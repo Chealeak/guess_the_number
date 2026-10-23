@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fatih/color"
 )
 
 type DifficultySet struct {
@@ -83,10 +85,10 @@ func main() {
 
 	for {
 		if len(lastAttempts) > 0 {
-			fmt.Printf("\nLast attempts: %s\n", lastAttempts.print())
+			color.Yellow("\nLast attempts: %s\n", lastAttempts.print())
 		}
 
-		fmt.Printf("Try #%d - Enter a number from %d to %d:\n", attemp, difficulty.RangeFrom, difficulty.RangeTo)
+		color.Yellow("Try #%d - Enter a number from %d to %d:\n", attemp, difficulty.RangeFrom, difficulty.RangeTo)
 		if scanner.Scan() {
 			enteredString := scanner.Text()
 			enteredNum, err := strconv.Atoi(enteredString)
@@ -100,10 +102,10 @@ func main() {
 			if gameOver {
 				outcome := "loss"
 				if enteredNum == randNum {
-					fmt.Println("You win!")
+					color.Green("You win!")
 					outcome = "win"
 				} else {
-					fmt.Println("Out of attempts. You lose...")
+					color.Red("Out of attempts. You lose...")
 				}
 
 				writeResult(outcome, attemp)
