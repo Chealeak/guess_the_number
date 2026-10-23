@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
 	"strconv"
+	"time"
 )
 
 type DifficultySet struct {
@@ -43,6 +45,12 @@ func (d DifficultySet) getDifficulty(difficulty int) Difficulty {
 	return val
 }
 
+type Result struct {
+	Date     time.Time `json:"date"`
+	Outcome  string    `json:"outcome"`
+	Attempts int       `json:"attempts"`
+}
+
 func main() {
 	difficultySet := NewDifficultySet()
 	difficulty, err := setupDifficulty(difficultySet)
@@ -69,11 +77,15 @@ func main() {
 
 			gameOver := enteredNum == randNum || attemp == difficulty.Attempts
 			if gameOver {
+				outcome := "loss"
 				if enteredNum == randNum {
 					fmt.Println("You win!")
+					outcome = "win"
 				} else {
 					fmt.Println("Out of attempts. You lose...")
 				}
+
+				writeResult(outcome, attemp)
 
 				attemp = 1
 				ok, err := startOver()
@@ -166,6 +178,22 @@ func giveHint(enteredNum, randNum int) string {
 	}
 
 	return fmt.Sprintf("%s The secret number is %s", proximity, hint)
+}
+
+func writeResult(outcome string, attempts int) {
+	file, err := os.OpenFile("results.json", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Print("Error while saving result into file")
+		return
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.Encode(Result{
+		Date:     time.Now(),
+		Outcome:  outcome,
+		Attempts: attempts,
+	})
 }
 
 func abs(x int) int {
