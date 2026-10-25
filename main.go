@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -227,19 +228,75 @@ func startOver(scanner *bufio.Scanner) (bool, error) {
 }
 
 func writeResult(outcome string, attempts int) {
-	file, err := os.OpenFile("results.json", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	const resultsFile = "results.json"
+
+	results, err := readResults(resultsFile)
 	if err != nil {
-		fmt.Print("Error while saving result into file")
+		fmt.Println("Error while saving result into file")
 		return
 	}
-	defer file.Close()
 
-	encoder := json.NewEncoder(file)
-	encoder.Encode(Result{
+	results = append(results, Result{
 		Date:     time.Now(),
 		Outcome:  outcome,
 		Attempts: attempts,
 	})
+
+	if err := saveResults(resultsFile, results); err != nil {
+		fmt.Println("Error while saving result into file")
+	}
+}
+
+func readResults(path string) ([]Result, error) {
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return []Result{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if len(data) == 0 {
+		return []Result{}, nil
+	}
+
+	var results []Result
+	if err := json.Unmarshal(data, &results); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+func saveResults(path string, results []Result) error {
+	data, err := json.MarshalIndent(results, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".results-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+
+	return nil
 }
 
 func abs(x int) int {

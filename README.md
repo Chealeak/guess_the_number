@@ -52,8 +52,14 @@ n
 Game is over
 ```
 
-A finished round is stored as one JSON object per line in `results.json`:
+Finished rounds are stored as a JSON array in `results.json`. Each new game is appended to that array:
 
 ```json
-{"date":"2026-10-23T21:35:20.666989098+03:00","outcome":"win","attempts":4}
+[
+  {
+    "date": "2026-10-23T21:35:20.666989098+03:00",
+    "outcome": "win",
+    "attempts": 4
+  }
+]
 ```
