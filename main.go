@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"strconv"
@@ -79,7 +81,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	randNum := generateRandNum(difficulty.RangeFrom, difficulty.RangeTo)
+	secret := generateSecret(difficulty.RangeFrom, difficulty.RangeTo)
 	attemp := 1
 	var lastAttempts LastAttempts
 
@@ -89,31 +91,25 @@ func main() {
 		}
 
 		color.Yellow("Try #%d - Enter a number from %d to %d:\n", attemp, difficulty.RangeFrom, difficulty.RangeTo)
-		if !scanner.Scan() {
-			if err := scanner.Err(); err != nil {
-				fmt.Printf("An error occurred: %v\n", err)
-				os.Exit(1)
+		enteredNum, err := readGuess(scanner, difficulty.RangeFrom, difficulty.RangeTo)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				fmt.Println("Game is over")
+				return
 			}
-			fmt.Println("Game is over")
-			return
+			fmt.Printf("An error occurred: %v\n", err)
+			os.Exit(1)
 		}
 
-		enteredString := scanner.Text()
-		enteredNum, err := strconv.Atoi(enteredString)
-		outOfRange := enteredNum < difficulty.RangeFrom || enteredNum > difficulty.RangeTo
-		if err != nil || outOfRange {
-			fmt.Printf("Please enter a number from %d to %d:\n", difficulty.RangeFrom, difficulty.RangeTo)
-			continue
-		}
-
-		gameOver := enteredNum == randNum || attemp == difficulty.Attempts
+		direction, equal := compareGuess(enteredNum, secret)
+		gameOver := equal || attemp == difficulty.Attempts
 		if gameOver {
 			outcome := "loss"
-			if enteredNum == randNum {
+			if equal {
 				color.Green("You win!")
 				outcome = "win"
 			} else {
-				color.Red("Out of attempts. You lose... The secret number was: %d.", randNum)
+				color.Red("Out of attempts. You lose... The secret number was: %d.", secret)
 			}
 
 			writeResult(outcome, attemp)
@@ -131,7 +127,7 @@ func main() {
 					fmt.Printf("An error occurred during difficulty setup: %v\n", err)
 					os.Exit(1)
 				}
-				randNum = generateRandNum(difficulty.RangeFrom, difficulty.RangeTo)
+				secret = generateSecret(difficulty.RangeFrom, difficulty.RangeTo)
 			} else {
 				fmt.Println("Game is over")
 				return
@@ -139,7 +135,7 @@ func main() {
 		} else {
 			attemp++
 			lastAttempts = append(lastAttempts, enteredNum)
-			fmt.Println(giveHint(enteredNum, randNum))
+			fmt.Printf("%s The secret number is %s\n", proximityHint(enteredNum, secret), direction)
 		}
 	}
 }
@@ -166,9 +162,52 @@ func setupDifficulty(scanner *bufio.Scanner, difficultySet DifficultySet) (Diffi
 	}
 }
 
-func generateRandNum(rangeFrom, rangeTo int) int {
+func generateSecret(rangeFrom, rangeTo int) int {
 	count := rangeTo - rangeFrom + 1
 	return rand.Intn(count) + rangeFrom
+}
+
+func readGuess(scanner *bufio.Scanner, rangeFrom, rangeTo int) (int, error) {
+	for {
+		if !scanner.Scan() {
+			if err := scanner.Err(); err != nil {
+				return 0, err
+			}
+			return 0, io.EOF
+		}
+
+		enteredNum, err := strconv.Atoi(scanner.Text())
+		if err != nil || enteredNum < rangeFrom || enteredNum > rangeTo {
+			fmt.Printf("Please enter a number from %d to %d:\n", rangeFrom, rangeTo)
+			continue
+		}
+
+		return enteredNum, nil
+	}
+}
+
+func compareGuess(guess, secret int) (direction string, equal bool) {
+	switch {
+	case guess < secret:
+		return "higher", false
+	case guess > secret:
+		return "lower", false
+	default:
+		return "", true
+	}
+}
+
+func proximityHint(guess, secret int) string {
+	distance := abs(guess - secret)
+
+	switch {
+	case distance <= 5:
+		return "Hot!"
+	case distance <= 15:
+		return "Warm!"
+	default:
+		return "Cold."
+	}
 }
 
 func startOver(scanner *bufio.Scanner) (bool, error) {
@@ -185,25 +224,6 @@ func startOver(scanner *bufio.Scanner) (bool, error) {
 		return true, nil
 	}
 	return false, nil
-}
-
-func giveHint(enteredNum, randNum int) string {
-	hint := "higher"
-	if enteredNum > randNum {
-		hint = "lower"
-	}
-
-	proximity := "Cold."
-	distance := abs(enteredNum - randNum)
-
-	switch {
-	case distance <= 5:
-		proximity = "Hot!"
-	case distance <= 15:
-		proximity = "Warm!"
-	}
-
-	return fmt.Sprintf("%s The secret number is %s", proximity, hint)
 }
 
 func writeResult(outcome string, attempts int) {
